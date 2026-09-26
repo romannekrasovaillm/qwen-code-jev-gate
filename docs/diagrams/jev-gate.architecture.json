@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Jev-стадия (stage-0) в гейте разрешений AUTO — Qwen Code",
+    "subtitle": "escalate-only: Jev-класс блокирует или не решает; при отказе — существующий LLM-каскад (ADR-002); носитель решений локальный (ADR-004, AD-10)",
+    "visual_preset": "signal-flow"
+  },
+  "components": [
+    { "id": "agent", "type": "external", "label": "Агент сессии", "sublabel": "вызов инструмента", "pos": [30, 240], "size": [150, 64] },
+    { "id": "deterministic", "type": "security", "label": "Детерминированные слои", "sublabel": "deny | ask → гейт не зовётся", "pos": [230, 240], "size": [180, 64] },
+    { "id": "jevstage", "type": "backend", "label": "Jev-стадия (CMP-001)", "sublabel": "shadow | block-only", "pos": [490, 240], "size": [170, 64] },
+    { "id": "gate", "type": "backend", "label": "Гейт-логика (CMP-003)", "sublabel": "инварианты · block | no-decision", "pos": [740, 240], "size": [180, 64] },
+    { "id": "decision", "type": "backend", "label": "Решение о вызове", "sublabel": "execute | ask | deny", "pos": [980, 240], "size": [170, 64] },
+    { "id": "state", "type": "backend", "label": "Сборщик state (CMP-004)", "sublabel": "белый список + редакция", "pos": [240, 60], "size": [180, 64] },
+    { "id": "localdecider", "type": "backend", "label": "Локальный сервер решений", "sublabel": "Ollaya · /v1/systemone · loopback", "pos": [700, 60], "size": [180, 64] },
+    { "id": "llmcascade", "type": "backend", "label": "LLM-каскад AUTO", "sublabel": "stage-1 · stage-2 · fail-closed", "pos": [740, 430], "size": [180, 64] },
+    { "id": "log", "type": "database", "label": "Журнал решений (CMP-005)", "sublabel": "class · confidence · via · specHash", "pos": [230, 430], "size": [180, 64] }
+  ],
+  "boundaries": [
+    { "kind": "security-group", "label": "Периметр владельца — локальный процесс + носитель решений по loopback (внешние вызовы запрещены, AD-10)", "wraps": ["agent", "deterministic", "jevstage", "gate", "decision", "state", "localdecider", "llmcascade", "log"] }
+  ],
+  "connections": [
+    { "id": "agent-call", "from": "agent", "to": "deterministic", "label": "вызов инструмента", "labelDy": 56 },
+    { "id": "det-allow", "from": "deterministic", "to": "jevstage", "label": "allow-eligible (AD-2)", "labelDy": 56 },
+    { "id": "stage-state", "from": "jevstage", "to": "state", "label": "разрешённые поля (AD-4)", "fromSide": "top", "toSide": "bottom", "labelDy": -24 },
+    { "id": "state-decider", "from": "state", "to": "localdecider", "label": "loopback, минимальный state", "fromSide": "right", "toSide": "left" },
+    { "id": "decider-gate", "from": "localdecider", "to": "gate", "label": "answers", "fromSide": "bottom", "toSide": "top" },
+    { "id": "stage-gate", "from": "jevstage", "to": "gate", "label": "вердикт", "labelDy": -24 },
+    { "id": "gate-block", "from": "gate", "to": "decision", "label": "block (block-only)", "variant": "emphasis", "labelDy": -24 },
+    { "id": "stage-escalate", "from": "jevstage", "to": "llmcascade", "label": "fail-closed: unavailable | no-decision (AD-3)", "variant": "dashed", "fromSide": "bottom", "toSide": "left" },
+    { "id": "cascade-decision", "from": "llmcascade", "to": "decision", "label": "shouldBlock", "fromSide": "right", "toSide": "bottom" },
+    { "id": "stage-log", "from": "jevstage", "to": "log", "label": "каждая стадия (AD-7)", "variant": "dashed", "fromSide": "bottom", "toSide": "bottom" }
+  ]
+}

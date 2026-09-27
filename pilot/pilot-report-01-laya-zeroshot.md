@@ -2,7 +2,7 @@
 
 - Дата: 2026-09-26. Носитель: `laya:en` (ModernBERT-large 421M, ONNX, Apache-2.0), сервер Ollaya v0.7.1 (`arm64`, CPU/fp32), endpoint `POST /v1/systemone`.
 - Набор: `pilot/probes/probe-set-v1.jsonl` (7 запросов по стратам пилота). Спек вопросов — `pilot/questions.spec.json` (заморожен, v1).
-- Среда: GB10 (<arm64-host>, aarch64, glibc 2.39, 121 ГБ unified), совмещение с `llama-server` — по разрешению владельца (лок `ollaya-jev-local.lock`).
+- Среда: GB10 (aarch64, glibc 2.39, 121 ГБ unified), совмещение с `llama-server` — по разрешению владельца (лок `ollaya-jev-local.lock`).
 - Оговорка о силе вывода: **7 примеров — это разведка, не измерение**. Доверительные интервалы здесь шире любого эффекта; числа ниже — сигналы для дизайна, а не метрики приёмки.
 
 ## Результаты

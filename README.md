@@ -102,9 +102,9 @@ Zero-shot носитель на нашем домене **не годится а
 
 ## Скриншоты
 
-| Диаграмма решения | Пилот-01 | Пилот-02 | Пилот-03 | Пилот-04 (275 примеров) |
-|---|---|---|---|---|
-| ![Поток решения](screenshots/architecture.png) | ![Пилот-01](screenshots/pilot-01.png) | ![Пилот-02](screenshots/pilot-02.png) | ![Пилот-03](screenshots/pilot-03.png) | ![Пилот-04](screenshots/pilot-04.png) |
+| Диаграмма решения | Пилот-01 | Пилот-02 | Пилот-03 | Пилот-04 (275) | Пилот-05 (396) |
+|---|---|---|---|---|---|
+| ![Поток решения](screenshots/architecture.png) | ![Пилот-01](screenshots/pilot-01.png) | ![Пилот-02](screenshots/pilot-02.png) | ![Пилот-03](screenshots/pilot-03.png) | ![Пилот-04](screenshots/pilot-04.png) | ![Пилот-05](screenshots/pilot-05.png) |
 
 ## Лицензии и атрибуция
 

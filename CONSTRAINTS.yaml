@@ -60,7 +60,7 @@ rules:
   # приёмки §8.2 спеки. Правка в autoMode.ts — ровно один union, без логики.
   - name: upstream_delta_scope
     type: command_succeeds
-    command: "bash -c 'git diff --name-only 224c974a21 HEAD -- packages/core/src packages/cli/src | grep -v -E \"^packages/(core|cli)/src/(jev/|permissions/classifier\\.ts$|permissions/autoMode\\.ts$|config/config\\.ts$|config/settingsSchema\\.ts$)\" | wc -l | grep -qx 0'"
+    command: "bash -c 'git diff --name-only upstream/main HEAD -- packages/core/src packages/cli/src | grep -v -E \"^packages/(core|cli)/src/(jev/|permissions/classifier\\.ts$|permissions/autoMode\\.ts$|config/config\\.ts$|config/settingsSchema\\.ts$)\" | wc -l | grep -qx 0'"
     timeout_secs: 120
     severity: error
 

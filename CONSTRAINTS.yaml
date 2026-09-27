@@ -176,6 +176,14 @@ rules:
     pattern: '(?i)cc-by-nc|cc_by_nc|openjev'
     severity: error
 
+  # AD-12: связь с upstream односторонняя — отправка в QwenLM/qwen-code запрещена.
+  # Правило падает, если push-URL remote `upstream` снова начнёт указывать в апстрим.
+  - name: upstream_push_disabled
+    type: command_succeeds
+    command: 'bash -c ''u=$(git remote get-url --push upstream 2>/dev/null || echo NONE); case "$u" in *QwenLM*) exit 1;; esac; exit 0'''
+    timeout_secs: 60
+    severity: error
+
   # Гигиена архитектурных документов: заглушки запрещены (неготовое — в Deferred).
   - name: no_placeholders_in_spine
     type: must_not_contain

@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Пилот-03: носители против ручного эталона</title>
+<style>
+  :root { --bg:#0f1117; --card:#171a23; --fg:#e8eaf0; --muted:#9aa3b2; --ok:#3ecf8e; --bad:#ff6b6b; --warn:#ffc857; --line:#242938; }
+  * { box-sizing:border-box; }
+  body { margin:0; padding:26px 32px 36px; background:var(--bg); color:var(--fg);
+         font:14px/1.5 -apple-system,"Segoe UI",Roboto,Ubuntu,sans-serif; }
+  h1 { font-size:21px; margin:0 0 4px; }
+  .sub { color:var(--muted); margin:0 0 18px; font-size:13px; }
+  .meta { display:flex; gap:9px; flex-wrap:wrap; margin-bottom:16px; }
+  .chip { background:var(--card); border:1px solid var(--line); border-radius:999px; padding:4px 11px; color:var(--muted); font-size:12px; }
+  table { width:100%; border-collapse:collapse; background:var(--card); border:1px solid var(--line); border-radius:10px; overflow:hidden; margin-bottom:14px; }
+  th, td { padding:8px 12px; text-align:left; border-bottom:1px solid var(--line); font-size:13px; }
+  th { color:var(--muted); font-weight:600; font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; }
+  tr:last-child td { border-bottom:none; }
+  .ok { color:var(--ok); font-weight:600; } .bad { color:var(--bad); font-weight:600; } .warn { color:var(--warn); font-weight:600; }
+  code { background:#0b0d12; border:1px solid var(--line); border-radius:5px; padding:1px 6px; font-size:12px; }
+  .concl { margin-top:14px; padding:13px 16px; border:1px solid var(--line); border-left:3px solid var(--bad); background:var(--card); border-radius:8px; }
+  .concl b { color:var(--bad); }
+  footer { margin-top:14px; color:var(--muted); font-size:12px; }
+</style>
+</head>
+<body>
+  <h1>Пилот-03: два носителя против ручного эталона</h1>
+  <p class="sub">48 примеров из реальных вызовов агента, размечены вручную, замороженный спек вопросов, локальный носитель решений, CPU-путь.</p>
+  <div class="meta">
+    <span class="chip">эталон: 17 опасных / 31 безопасных</span>
+    <span class="chip">правило: размечаем суть, не форму</span>
+    <span class="chip">латентность: p50 / p95</span>
+  </div>
+  <table>
+    <thead><tr><th>Метрика</th><th>en (421M)</th><th>multilingual (322M)</th><th>О чём говорит</th></tr></thead>
+    <tbody>
+      <tr><td>Согласие по классу с эталоном</td><td class="warn">52 %</td><td class="bad">31 %</td><td>ниже любого практического порога</td></tr>
+      <tr><td>Латентность p50 / p95</td><td class="bad">3.06 / 6.07 с</td><td class="warn">1.14 / 3.67 с</td><td>бюджет 1.2 с не выполняется нигде</td></tr>
+      <tr><td>Опасные, пропущены стадией</td><td class="bad">12 из 17 (71 %)</td><td>1 из 17</td><td>у en — систематическая недооценка риска</td></tr>
+      <tr><td>Безопасные, ложно заблокированы</td><td class="warn">6 из 31 (19 %)</td><td class="bad">31 из 31 (100 %)</td><td>multilingual блокирует всё — сигнал бесполезен</td></tr>
+      <tr><td>Ложных разрешений в режиме enforce</td><td class="bad">11</td><td>0</td><td>право разрешать этим моделям давать нельзя</td></tr>
+    </tbody>
+  </table>
+  <div class="concl">
+    <b>Вердикт: reject для zero-shot в роли арбитра.</b> Один носитель пропускает 70 % опасного, другой блокирует все безопасные — «нулевой пропуск» у второго есть следствие тотального блока, а не качества.
+    Инварианты «стадия никогда не разрешает» и «блок терминален» подтверждены эмпирически: первый предотвратил бы 11 ложных разрешений на опасных вызовах, второй не даёт обойти блок через механику подтверждений.
+    Дальше — только домен-адаптация на расширенном наборе (200–300+ примеров) и повторный замер тем же скриптом и тем же спеком.
+  </div>
+  <footer>Ограничения: 48 примеров — первая партия; разметка одного разметчика (без inter-annotator agreement); GPU-путь недоступен для этой платформы. Полный отчёт: <code>pilot/pilot-report-03-nositeli-protiv-etalona.md</code></footer>
+</body>
+</html>

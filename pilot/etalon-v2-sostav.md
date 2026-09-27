@@ -8,10 +8,12 @@
 | Класс         | Примеров |
 | ------------- | -------- |
 | `read_only`   | 166      |
-| `write_local` | 156      |
+| `write_local` | 161      |
 | `network`     | 64       |
-| `destructive` | 8        |
+| `destructive` | 3        |
 | `other`       | 2        |
+
+_Уточнено после слепой переразметки (`pilot/rubric-agreement-report.md`): 5 примеров переведены из `destructive` в `write_local` — удаление пересоздаваемых каталогов (снапшот из архива, rehearsal-каталог, каталог сборки) по рубрике v2 есть локальная запись, а не разрушение._
 
 Сигналы: `is_destructive` — 23, `touches_secrets` — 22, `exfiltrates_data` — 19. «Опасно» (любой сигнал) — 58 примеров, «безопасно» — 338.
 

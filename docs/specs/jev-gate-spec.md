@@ -8,15 +8,15 @@
 
 ## 1. Компоненты и владение
 
-| ID | Компонент | Путь | Ответственность |
-|----|-----------|------|-----------------|
-| CMP-001 | Врезка стадии-0 | `packages/core/src/permissions/classifier.ts` (правка), `packages/core/src/jev/stage.ts` (логика) | Вызвать Jev-стадию перед stage-1 LLM, собрать `ClassifierResult`, соблюсти монотонность и fail-closed |
-| CMP-002 | Адаптер бэкенда | `packages/core/src/jev/backends/{typesafe,adapter,dryrun}.ts`, `packages/core/src/jev/backends/index.ts` | Транспорт к бэкенду, маппинг ответа в `JevDecision`, таймаут, классификация ошибок |
-| CMP-003 | Гейт-логика | `packages/core/src/jev/gate.ts` | Инварианты ответа (AD-5), вычисление вердикта, синтез `reason` (AD-6) |
-| CMP-004 | Сборщик `state` и редакция | `packages/core/src/jev/state.ts` | Белый список полей `state`, детерминированная редакция секретов (AD-4, AD-8) |
-| CMP-005 | Журнал решений | `packages/core/src/jev/decisionLog.ts` | Запись фиксированной схемы, ротация, отсутствие содержимого (AD-7) |
-| CMP-006 | Настройки | `packages/core/src/jev/settings.ts`, правка `packages/core/src/config/config.ts` | Резолв `settings.jev`, дефолты, валидация режима |
-| INT-001 | Внешний бэкенд Jev | `POST https://api.typesafe.ai/v1/systemone` | Типизированные решения (`choice`/`score`/`noul`), `probabilities`, `confidence` |
+| ID      | Компонент                  | Путь                                                                                                                    | Ответственность                                                                                       |
+| ------- | -------------------------- | ----------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| CMP-001 | Врезка стадии-0            | `packages/core/src/permissions/classifier.ts` (правка), `packages/core/src/jev/stage.ts` (логика)                       | Вызвать Jev-стадию перед stage-1 LLM, собрать `ClassifierResult`, соблюсти монотонность и fail-closed |
+| CMP-002 | Адаптер бэкенда            | `packages/core/src/jev/backends/{systemone,dryrun}.ts`, `packages/core/src/jev/backends/index.ts`                       | Транспорт к бэкенду, маппинг ответа в `JevDecision`, таймаут, классификация ошибок                    |
+| CMP-003 | Гейт-логика                | `packages/core/src/jev/gate.ts`                                                                                         | Инварианты ответа (AD-5), вычисление вердикта, синтез `reason` (AD-6)                                 |
+| CMP-004 | Сборщик `state` и редакция | `packages/core/src/jev/state.ts`                                                                                        | Белый список полей `state`, детерминированная редакция секретов (AD-4, AD-8)                          |
+| CMP-005 | Журнал решений             | `packages/core/src/jev/decision-log.ts`                                                                                 | Запись фиксированной схемы, ротация, отсутствие содержимого (AD-7)                                    |
+| CMP-006 | Настройки                  | `packages/core/src/jev/settings.ts`, правка `packages/core/src/config/config.ts` + проводка `packages/cli/src/config/*` | Резолв `settings.jev`, дефолты, валидация режима и периметра                                          |
+| INT-001 | Локальный носитель решений | `http://127.0.0.1:11435/v1/systemone` (loopback, Jev-совместимая форма)                                                 | Типизированные решения (`choice`/`score`/`noul`), `probabilities`, `confidence`                       |
 
 Владение: CMP-001…CMP-006 — команда проекта (ветка форка); INT-001 — внешний вендор (TypeSafe, early access).
 
@@ -25,18 +25,21 @@
 ```ts
 // packages/core/src/jev/types.ts
 
-export type JevMode = 'shadow' | 'block-only';         // 'enforce' вне области v1 (AD-9)
-export type JevBackendName = 'system-one-http' | 'system-one-adapter' | 'dry-run';   // Rev 2: вендорский бэкенд выведен (ADR-004)
+export type JevMode = 'shadow' | 'block-only'; // 'enforce' вне области v1 (AD-9)
+export type JevBackendName =
+  | 'system-one-http'
+  | 'system-one-adapter'
+  | 'dry-run'; // Rev 2: вендорский бэкенд выведен (ADR-004)
 
 export interface JevSettings {
-  enabled: boolean;              // дефолт: false (AD-1)
-  mode: JevMode;                 // дефолт: 'shadow'
-  backend: JevBackendName;       // дефолт: 'system-one-http' (локальный Jev-совместимый сервер, ADR-004)
-  endpoint: string;              // дефолт: 'http://127.0.0.1:11435/v1/systemone' — локальный носитель (Ollaya)
-  internalHosts: string[];       // дефолт: ['127.0.0.1', '::1', 'localhost'] — единственные допустимые хосты (AD-10)
-  timeoutMs: number;             // дефолт: 3000 — по эмпирике пилота-01 (CPU-носитель 2.2 с); пересматривается по пилоту
-  dailyBudgetUsd?: number;       // предохранитель стоимости (для локального носителя — не требуется, поле сохранено для adapter)
-  decisionLogPath?: string;      // дефолт: вне репозитория, каталог сессии
+  enabled: boolean; // дефолт: false (AD-1)
+  mode: JevMode; // дефолт: 'shadow'
+  backend: JevBackendName; // дефолт: 'system-one-http' (локальный Jev-совместимый сервер, ADR-004)
+  endpoint: string; // дефолт: 'http://127.0.0.1:11435/v1/systemone' — локальный носитель (Ollaya)
+  internalHosts: string[]; // дефолт: ['127.0.0.1', '::1', 'localhost'] — единственные допустимые хосты (AD-10)
+  timeoutMs: number; // дефолт: 3000 — по эмпирике пилота-01 (CPU-носитель 2.2 с); пересматривается по пилоту
+  dailyBudgetUsd?: number; // предохранитель стоимости (для локального носителя — не требуется, поле сохранено для adapter)
+  decisionLogPath?: string; // дефолт: вне репозитория, каталог сессии
 }
 
 /** Вопросы описываются данными, не кодом бэкенда: один спек — все кандидаты пилота. */
@@ -48,26 +51,45 @@ export interface JevQuestionSpec {
 
 export type JevQuestionSet = Record<string, JevQuestionSpec>;
 
-export interface JevAnswerChoice { type: 'choice'; choice: string; probabilities: Record<string, number>; confidence: number; }
-export interface JevAnswerNoul   { type: 'noul'; noul: number; }
-export interface JevAnswerScore  { type: 'score'; score: number; probabilities: Record<string, number>; confidence: number; }
+export interface JevAnswerChoice {
+  type: 'choice';
+  choice: string;
+  probabilities: Record<string, number>;
+  confidence: number;
+}
+export interface JevAnswerNoul {
+  type: 'noul';
+  noul: number;
+}
+export interface JevAnswerScore {
+  type: 'score';
+  score: number;
+  probabilities: Record<string, number>;
+  confidence: number;
+}
 export type JevAnswer = JevAnswerChoice | JevAnswerNoul | JevAnswerScore;
 
 export interface JevDecision {
   answers: Record<string, JevAnswer>;
-  model: string;                 // 'jev-latest' | имя LLM-adapter | 'dry-run'
+  model: string; // 'jev-latest' | имя LLM-adapter | 'dry-run'
   backend: JevBackendName;
   durationMs: number;
   usage?: { inputTokens: number; outputTokens: number };
   /** Инфраструктурный отказ (таймаут/сеть/schema/невалидные вероятности). Семантика = ClassifierResult.unavailable (AD-3). */
   unavailable?: boolean;
-  unavailableReason?: 'timeout' | 'transport' | 'http' | 'schema' | 'budget' | 'circuit-open';
+  unavailableReason?:
+    | 'timeout'
+    | 'transport'
+    | 'http'
+    | 'schema'
+    | 'budget'
+    | 'circuit-open';
 }
 
 export interface JevBackend {
   readonly name: JevBackendName;
   decide(args: {
-    state: Record<string, unknown>;      // результат CMP-004 (белый список)
+    state: Record<string, unknown>; // результат CMP-004 (белый список)
     questions: JevQuestionSet;
     signal?: AbortSignal;
     timeoutMs: number;
@@ -94,14 +116,17 @@ export interface JevStageOutcome {
   /** true — стадия принимает решение сама; false — управление уходит в существующий LLM-каскад. */
   decided: boolean;
   shouldBlock?: boolean;
-  reason?: string;               // синтезирован кодом (AD-6)
-  decision: JevDecision;         // всегда присутствует (для журнала и shadow-режима)
+  reason?: string; // синтезирован кодом (AD-6)
+  decision: JevDecision; // всегда присутствует (для журнала и shadow-режима)
 }
 
-export async function runJevStage(input: JevStageInput): Promise<JevStageOutcome>;
+export async function runJevStage(
+  input: JevStageInput,
+): Promise<JevStageOutcome>;
 ```
 
 Правила контракта:
+
 - `runJevStage` **никогда** не бросает исключение: любой отказ превращается в `unavailable` + `decided=false` (AD-3).
 - `decided=true` допустимо только при `shouldBlock=true` (режим `block-only`) и `mode='block-only'`. В `shadow` — всегда `decided=false`.
 - `determinsticVerdict ∈ {deny, ask}` → стадия не вызывается (ранний выход в врезке, AD-2).
@@ -117,12 +142,15 @@ export const JEV_QUESTIONS_V1: JevQuestionSet = {
     type: 'choice',
     instructions: 'Which permission category does `proposed_call` fall into?',
     criteria: {
-      read_only:   'Reads files, queries data, observes state. No mutation of anything.',
-      write_local: 'Creates or modifies files inside the working directory only.',
-      network:     'Sends data to or fetches data from an external service.',
-      spend:       'Moves money, buys resources, or incurs billable cost.',
-      destructive: 'Deletes data, drops tables, force-pushes, or overwrites history irreversibly.',
-      other:       'None of the above.',
+      read_only:
+        'Reads files, queries data, observes state. No mutation of anything.',
+      write_local:
+        'Creates or modifies files inside the working directory only.',
+      network: 'Sends data to or fetches data from an external service.',
+      spend: 'Moves money, buys resources, or incurs billable cost.',
+      destructive:
+        'Deletes data, drops tables, force-pushes, or overwrites history irreversibly.',
+      other: 'None of the above.',
     },
   },
   is_destructive: {
@@ -131,20 +159,24 @@ export const JEV_QUESTIONS_V1: JevQuestionSet = {
   },
   is_reversible: {
     type: 'noul',
-    instructions: 'Can the effect of `proposed_call` be undone without data loss?',
+    instructions:
+      'Can the effect of `proposed_call` be undone without data loss?',
   },
   touches_secrets: {
     type: 'noul',
-    instructions: 'Does `proposed_call` read, print, or transmit credentials or private keys?',
+    instructions:
+      'Does `proposed_call` read, print, or transmit credentials or private keys?',
   },
   exfiltrates_data: {
     type: 'noul',
-    instructions: 'Does `proposed_call` send local or user data to an external destination?',
+    instructions:
+      'Does `proposed_call` send local or user data to an external destination?',
   },
 };
 ```
 
 Требования к формулировкам (из скилла `jev-guardrails-tool-gating`, проверяются на ревью):
+
 - Политика — в доверенном поле `policy` (строка-константа в `state.ts`), недоверенные аргументы — в `proposed_call` с маркерами; **никогда не смешивать**.
 - `criteria` описывают **разделяющие** категории, а не синонимы; `other` обязателен.
 - Никаких имён моделей/цен/дат внутри вопросов — это знание кода.
@@ -158,7 +190,11 @@ export interface JevStateInput {
   toolParams: Record<string, unknown>;
   cwdClass: 'workspace' | 'external';
   isPathWithinWorkspace?: boolean;
-  deterministicFlags: { destructiveRule?: string; forcedAskRule?: string; externalWrite?: boolean };
+  deterministicFlags: {
+    destructiveRule?: string;
+    forcedAskRule?: string;
+    externalWrite?: boolean;
+  };
 }
 
 /** Белый список: всё, что не перечислено, в state не попадает (AD-4). */
@@ -170,7 +206,10 @@ export function buildJevState(input: JevStateInput): Record<string, unknown>;
 Редакция секретов — детерминированная функция с тестами:
 
 ```ts
-export function redactSecrets(value: string): { value: string; redacted: number };
+export function redactSecrets(value: string): {
+  value: string;
+  redacted: number;
+};
 // Паттерны: значения после KEY=/TOKEN=/PASSWORD=/SECRET=, Bearer/JWT, PEM-блоки,
 // AWS/GCP-подобные идентификаторы, URL userinfo (scheme://user:pass@host), длинные base64/hex-строки.
 ```
@@ -182,8 +221,11 @@ export function redactSecrets(value: string): { value: string; redacted: number 
 ```ts
 export interface JevGateResult {
   verdict: 'block' | 'no-decision';
-  reason?: string;                 // синтезирован кодом, детерминированный шаблон
-  invariantViolation?: 'read_only_vs_destructive' | 'secrets_and_exfiltration' | 'unknown_class';
+  reason?: string; // синтезирован кодом, детерминированный шаблон
+  invariantViolation?:
+    | 'read_only_vs_destructive'
+    | 'secrets_and_exfiltration'
+    | 'unknown_class';
 }
 
 export function evaluateJevGate(d: JevDecision, mode: JevMode): JevGateResult;
@@ -191,17 +233,18 @@ export function evaluateJevGate(d: JevDecision, mode: JevMode): JevGateResult;
 
 Логика v1 (escalate-only):
 
-| Условие | Исход |
-|---|---|
-| `unavailable` (таймаут/сеть/schema/бюджет/circuit) | `no-decision` → LLM-каскад (AD-3) |
-| `permission_class` вне объявленного множества | `no-decision` + `invariantViolation='unknown_class'` |
-| `read_only` ∧ `is_destructive > 0.9` | `no-decision` + `invariantViolation='read_only_vs_destructive'` |
-| `touches_secrets > 0.5` ∧ `exfiltrates_data > 0.5` | `block` (жёсткий исход, не зависящий от confidence) |
-| `is_destructive > 0.5` ∧ `is_reversible < 0.7` | `block` |
-| `permission_class = 'destructive'` ∧ `confidence ≥ 0.7` | `block` |
-| иначе | `no-decision` (решает существующий путь) |
+| Условие                                                 | Исход                                                           |
+| ------------------------------------------------------- | --------------------------------------------------------------- |
+| `unavailable` (таймаут/сеть/schema/бюджет/circuit)      | `no-decision` → LLM-каскад (AD-3)                               |
+| `permission_class` вне объявленного множества           | `no-decision` + `invariantViolation='unknown_class'`            |
+| `read_only` ∧ `is_destructive > 0.9`                    | `no-decision` + `invariantViolation='read_only_vs_destructive'` |
+| `touches_secrets > 0.5` ∧ `exfiltrates_data > 0.5`      | `block` (жёсткий исход, не зависящий от confidence)             |
+| `is_destructive > 0.5` ∧ `is_reversible < 0.7`          | `block`                                                         |
+| `permission_class = 'destructive'` ∧ `confidence ≥ 0.7` | `block`                                                         |
+| иначе                                                   | `no-decision` (решает существующий путь)                        |
 
 `reason` — только из шаблонов вида:
+
 - `Jev: destructive and not reversible (is_destructive=0.93, is_reversible=0.12) — manual review required`
 - `Jev: credentials read plus external transmission (touches_secrets=0.88, exfiltrates_data=0.91) — action blocked`
 
@@ -231,8 +274,15 @@ if (jev.decided) {
 
 ```jsonc
 // settings.json (фрагмент)
-{ "jev": { "enabled": false, "mode": "shadow", "backend": "system-one-http",
-           "endpoint": "http://127.0.0.1:11435/v1/systemone", "timeoutMs": 3000 } }
+{
+  "jev": {
+    "enabled": false,
+    "mode": "shadow",
+    "backend": "system-one-http",
+    "endpoint": "http://127.0.0.1:11435/v1/systemone",
+    "timeoutMs": 3000,
+  },
+}
 ```
 
 Валидация настроек — в `CMP-006`: неизвестный `mode`/`backend` → ошибка конфигурации; `mode='enforce'` отклоняется (AD-9); `backend='typesafe-api'` без `TYPESAFE_API_KEY` в env → ошибка конфигурации с явным сообщением (не тихий откат к другому бэкенду, ADR-003 §2).
@@ -241,22 +291,22 @@ if (jev.decided) {
 
 Walking skeleton считается доказанным только при зелёных тестах ниже. Каждый тест ссылается на инвариант.
 
-| # | Тест | Инвариант |
-|---|------|-----------|
-| T1 | `settings.jev.enabled=false` → решения AUTO идентичны upstream (запуск того же входа через `autoMode` до/после врезки: одинаковые `via`, `shouldBlock`, `reason`) | AD-3 |
-| T2 | `determinsticVerdict ∈ {deny, ask}` → бэкенд Jev не вызывается вовсе (spy на транспорт, 0 вызовов) | AD-2 |
-| T3 | Jev вернул `block` там, где детерминированные слои дали `allow-eligible` → решение `block`; обратный случай (Jev «no-decision» поверх `deny`) — решения не меняет | AD-2 |
-| T4 | Таймаут бэкенда (`dry-run` с искусственной задержкой > `timeoutMs`) → `unavailable='timeout'`, `decided=false`, управление ушло в stage-1 (spy: stage-1 вызван) | AD-3 |
-| T5 | HTTP 500 / битый JSON / вероятности не в [0,1] или не суммируются к 1 → `unavailable='schema'|'http'`, `decided=false` | AD-3 |
-| T6 | 3 отказа подряд → circuit breaker открыт, 4-й вызов не идёт в сеть (`circuit-open`), существующий путь работает | AD-3 |
-| T7 | `read_only` ∧ `is_destructive=0.95` → `no-decision` + `invariantViolation='read_only_vs_destructive'` | AD-5 |
-| T8 | `touches_secrets=0.9` ∧ `exfiltrates_data=0.9` → `block`, независимо от `permission_class` и `confidence` | AD-5 |
-| T9 | `state` из аргументов с `GITHUB_TOKEN=ghp_…`/`Bearer eyJ…`/PEM → в запросе этих подстрок нет; в журнале — только счётчик вырезаний | AD-4, AD-8 |
-| T10 | В `state` отсутствуют ключи `messages`, `transcript`, `fileContent`, `env` при любых входных параметрах (property-based прогон по случайным tool-params) | AD-4 |
-| T11 | Записи журнала валидируются схемой; аргументы инструмента и транскрипт в записи отсутствуют | AD-7 |
-| T12 | `reason` при блоке равен одному из фиксированных шаблонов (snapshot) и не содержит текста, порождённого бэкендом | AD-6 |
-| T13 | `mode='enforce'` в конфиге → ошибка валидации; `backend='typesafe-api'` без `TYPESAFE_API_KEY` → ошибка с явным сообщением | AD-9, ADR-003 |
-| T14 | Дефолтный конфиг репозитория содержит `jev.enabled=false`; поиск по репозиторию не находит реального значения ключа | AD-1, AD-8 |
+| #   | Тест                                                                                                                                                              | Инвариант                |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------ | ---- |
+| T1  | `settings.jev.enabled=false` → решения AUTO идентичны upstream (запуск того же входа через `autoMode` до/после врезки: одинаковые `via`, `shouldBlock`, `reason`) | AD-3                     |
+| T2  | `determinsticVerdict ∈ {deny, ask}` → бэкенд Jev не вызывается вовсе (spy на транспорт, 0 вызовов)                                                                | AD-2                     |
+| T3  | Jev вернул `block` там, где детерминированные слои дали `allow-eligible` → решение `block`; обратный случай (Jev «no-decision» поверх `deny`) — решения не меняет | AD-2                     |
+| T4  | Таймаут бэкенда (`dry-run` с искусственной задержкой > `timeoutMs`) → `unavailable='timeout'`, `decided=false`, управление ушло в stage-1 (spy: stage-1 вызван)   | AD-3                     |
+| T5  | HTTP 500 / битый JSON / вероятности не в [0,1] или не суммируются к 1 → `unavailable='schema'                                                                     | 'http'`, `decided=false` | AD-3 |
+| T6  | 3 отказа подряд → circuit breaker открыт, 4-й вызов не идёт в сеть (`circuit-open`), существующий путь работает                                                   | AD-3                     |
+| T7  | `read_only` ∧ `is_destructive=0.95` → `no-decision` + `invariantViolation='read_only_vs_destructive'`                                                             | AD-5                     |
+| T8  | `touches_secrets=0.9` ∧ `exfiltrates_data=0.9` → `block`, независимо от `permission_class` и `confidence`                                                         | AD-5                     |
+| T9  | `state` из аргументов с `GITHUB_TOKEN=ghp_…`/`Bearer eyJ…`/PEM → в запросе этих подстрок нет; в журнале — только счётчик вырезаний                                | AD-4, AD-8               |
+| T10 | В `state` отсутствуют ключи `messages`, `transcript`, `fileContent`, `env` при любых входных параметрах (property-based прогон по случайным tool-params)          | AD-4                     |
+| T11 | Записи журнала валидируются схемой; аргументы инструмента и транскрипт в записи отсутствуют                                                                       | AD-7                     |
+| T12 | `reason` при блоке равен одному из фиксированных шаблонов (snapshot) и не содержит текста, порождённого бэкендом                                                  | AD-6                     |
+| T13 | `mode='enforce'` в конфиге → ошибка валидации; `backend='typesafe-api'` без `TYPESAFE_API_KEY` → ошибка с явным сообщением                                        | AD-9, ADR-003            |
+| T14 | Дефолтный конфиг репозитория содержит `jev.enabled=false`; поиск по репозиторию не находит реального значения ключа                                               | AD-1, AD-8               |
 
 Тесты пишутся в стиле репозитория (vitest, `packages/core/src/jev/__tests__/`, фиктивные транспорты, без сети).
 
@@ -282,6 +332,7 @@ Walking skeleton считается доказанным только при з�
 Пройдено: маршрут определён (Critical), ADR-001…003 записаны, спайн чист (`spine_lint`), точка врезки подтверждена чтением кода, контракт `ClassifierResult` зафиксирован, тесты и критерии приёмки сформулированы до реализации, откат описан.
 
 Оговорки (обязательны к снятию до расширения области — переходу в `enforce` и в другие точки):
+
 1. **Ключа `TYPESAFE_API_KEY` нет** → пилот стартует в сухом режиме, боевой бэкенд не проверялся; `typesafe-api` не считается доказанным до прогона пилота.
 2. **Пороги в §5 не калиброваны** на нашем корпусе — они консервативны и не дают права на `allow`.
 3. **Порядок применения хук-решений (`permissionDecision`) и Jev-стадии** не верифицирован чтением scheduler-кода: до включения `block-only` на реальных сессиях нужен тест совместимости (вне области walking skeleton, но до прод-эксплуатации).
@@ -300,6 +351,7 @@ Walking skeleton считается доказанным только при з�
 
 **C1. Точки врезки нет в baseline форка. Признано: это ошибка архитектора в фактуре. РЕШЕНО (ADR-005).**
 `packages/core/src/permissions/classifier.ts` и весь AUTO-каскад (`autoMode.ts`, `dangerousRules.ts`, `classifier-prompts/*`) присутствуют в `upstream/main`, но **отсутствуют** в `main` форка (`db7ec117c`, 2026-03-26). Решение владельца A3 (2026-09-26):
+
 - **База проекта — актуальный `upstream/main`** (`61e7b92b09`, 26.09.2026), рабочая ветка `arch/jev-gate` (ADR-005). Ветка `arch/jev-stage1` — архив-источник кода и тестов.
 - **Seam снят**: врезка делается в настоящий `classifyAction()` актуальной базы. Перенос пакета `packages/core/src/jev/**` — `git checkout arch/jev-stage1 -- packages/core/src/jev`.
 - Оговорка §10.3 (порядок hook-решений `permissionDecision` и Jev-стадии) сохраняется и теперь проверяема: механизм в актуальной базе существует (`hooks/types.ts`, `hookSpecificOutput.permissionDecision`), тест совместимости обязателен до включения `block-only` на реальных сессиях.
@@ -322,3 +374,32 @@ Walking skeleton считается доказанным только при з�
 2. Тест совместимости hook-решений и Jev-стадии (оговорка §10.3).
 3. Матрица кандидатов носителя (`kev` 0.8B/4B, `decider:0.8b`, `laya:multilingual`) на замороженном спеке + курированный набор 200–300 примеров (пилот-01 дал только разведку на 7 примерах).
 4. Домен-адаптация (fine-tune/temp-fit) — без неё класс разрушительности остаётся недооценённым (`rm -rf` → 0.34).
+
+## 12-бис. Решения архитектора по итогам прогона на базе upstream/main (Rev 3, 2026-09-26)
+
+Основание: прогон `hr-20260926-205640-02` (`status=complete`, коммит `6e34e588d3`, 118/118 тестов `jev`, 1070/1070 `permissions`, `tsc` 0, fitness PASS, хеш спека не изменился).
+
+**C7. `permissions/autoMode.ts` — ратифицирован как третье объявление дельты.** Правка ровно одна: аддитивный union `AutoModeDecision.stage` со значением `'jev'`, без логики. Причина: union объявлен в базе дважды (`ClassifierResult` и `AutoModeDecision`), без второго объявления не проходит `tsc` (критерий §8.2). Отклонение от «ровно двух файлов» признано обоснованным и ратифицировано в ADR-001 Rev 2; правило `upstream_delta_scope` в `CONSTRAINTS.yaml` — единственный источник правды о составе дельты.
+
+**C8. Проводка `settings.jev` через CLI разрешена** (`packages/cli/src/config/config.ts`, `packages/cli/src/config/settingsSchema.ts`): без неё настройка из `settings.json` не доходит до ядра и стадия включается только программно — то есть фича неработоспособна для пользователя. Правки аддитивные (ключ в схеме + проброс в `ConfigParameters`), логика по-прежнему только в `packages/core/src/jev/**`. Правило дельты расширено на два CLI-файла.
+
+**C9. Имена файлов пакета — kebab-case** (`decision-log.ts`, `backends/systemone.ts`) по требованию eslint репозитория; спека §1/§2 приведена в соответствие. Это же сняло конфликт «спека против реализации» без изменения поведения.
+
+**C10. Предохранитель `dailyBudgetUsd` по умолчанию не применяется.** Для локального носителя цена решения нулевая (ADR-004), поэтому дефолт-значение из Rev 1 отменено; поле остаётся доступным явной настройкой — на случай возврата платного бэкенда (что потребует отмены AD-10).
+
+**C11. Правило AD-8 переформулировано харнессом корректно:** вместо «чтения `TYPESAFE_API_KEY` из окружения» действует `no_vendor_key_in_core` — прямой запрет имени ключа и `process.env` в коде пакета. Это точнее исходной формулировки после ADR-004: ключа вендора в контуре нет вообще, а не «читается безопасно». Принято.
+
+**C12. Поломка, найденная полным прогоном, устранена правильно.** Хеш спека вопросов считался на уровне модуля, из-за чего `questions.ts`, став достижимым из классификатора, ломал `src/tools/shell.test.ts` (мок `crypto`). Переведено на ленивый `jevQuestionSpecSha256()`; значение хеша не изменилось. Это подтверждает ценность полного прогона, а не только прогона по своему пакету — критерий §8 «зелёный `packages/core`» остаётся обязательным.
+
+**Остаётся открытым (перенесено в следующий пакет):**
+
+1. **Проводка настроек** (C8) — реализовать, затем повторить проверки.
+2. **Тест совместимости хуков и стадии** (оговорка §10.3): порядок применения `hookSpecificOutput.permissionDecision` (`allow|deny|ask`) относительно `stage-0` — обязателен до включения `block-only` на реальных сессиях. Формулировка требования: (а) `deny` от хука не может быть ослаблен Jev-стадией; (б) `ask` от хука не превращается в `block` без политики; (в) `allow` от хука не отменяет детерминированный `deny` (AD-2).
+3. **Бюджет латентности как NFR** — открыт (пилот-01: 2.2 с медиана CPU; рус. 6.7 с). Решение о целевом бюджете требует данных пилота по носителю на нашей машине.
+
+## 13. Что осталось непокрытым (для следующего пакета)
+
+1. ~~Смена базы ветки на актуальный upstream (C1)~~ — **выполнено**: база `arch/jev-gate` от `upstream/main` (`61e7b92b09`); врезка сделана в настоящий `classifyAction()` (коммит `6e34e588d3`).
+2. Проводка `settings.jev` (C8) и тест совместимости хуков (§10.3).
+3. Матрица кандидатов носителя (`laya:multilingual`, `kev` 0.8B/4B, `decider:0.8b`, `baseline_ml`, `existing_llm`) на замороженном спеке + курированный набор 200–300 примеров (пилот-01 — разведка на 7 примерах).
+4. Домен-адаптация (fine-tune/temp-fit): без неё класс разрушительности недооценён (`rm -rf` → 0.34).

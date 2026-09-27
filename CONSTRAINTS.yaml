@@ -5,64 +5,69 @@ rules:
   # AD-1 / ADR-001: спайн и решения — часть репозитория до начала реализации.
   - name: spine_present
     type: file_exists
-    path: "ARCHITECTURE-SPINE.md"
+    path: 'ARCHITECTURE-SPINE.md'
     severity: error
   - name: adr_002_present
     type: file_exists
-    path: "docs/adr/ADR-002-jev-kak-stadiya-0-gate-razresheniy-auto.md"
+    path: 'docs/adr/ADR-002-jev-kak-stadiya-0-gate-razresheniy-auto.md'
     severity: error
   - name: delta_spec_present
     type: file_exists
-    path: "docs/specs/jev-gate-spec.md"
+    path: 'docs/specs/jev-gate-spec.md'
     severity: error
 
   # AD-1: вся новая логика — в изолированном пакете core/src/jev/**.
   - name: jev_module_layout
     type: file_exists
-    path: "packages/core/src/jev/stage.ts"
+    path: 'packages/core/src/jev/stage.ts'
     severity: error
   - name: jev_gate_present
     type: file_exists
-    path: "packages/core/src/jev/gate.ts"
+    path: 'packages/core/src/jev/gate.ts'
     severity: error
   - name: jev_state_builder_present
     type: file_exists
-    path: "packages/core/src/jev/state.ts"
+    path: 'packages/core/src/jev/state.ts'
     severity: error
   - name: jev_decision_log_present
     type: file_exists
-    path: "packages/core/src/jev/decisionLog.ts"
+    path: 'packages/core/src/jev/decision-log.ts'
     severity: error
   - name: jev_backends_have_index
     type: dir_must_have_file
-    glob: "packages/core/src/jev/backends"
-    path: "index.ts"
+    glob: 'packages/core/src/jev/backends'
+    path: 'index.ts'
     severity: error
 
   # AD-1 / ADR-002: стадия врезана ровно в одну точку — classifyAction.
   - name: stage_wired_into_classifier
     type: must_contain
-    glob: "packages/core/src/permissions/classifier.ts"
-    pattern: "runJevStage"
+    glob: 'packages/core/src/permissions/classifier.ts'
+    pattern: 'runJevStage'
     severity: error
   - name: classifier_references_adr_002
     type: must_contain
-    glob: "packages/core/src/permissions/classifier.ts"
-    pattern: "ADR-002"
+    glob: 'packages/core/src/permissions/classifier.ts'
+    pattern: 'ADR-002'
     severity: error
 
   # AD-1: дельта против upstream ограничена объявленными файлами.
-  # Разрешены: новые пути packages/core/src/jev/**, правки classifier.ts и config/config.ts.
+  # Разрешены: новые пути packages/core/src/jev/**, правки classifier.ts,
+  # config/config.ts и — аддитивное расширение union `stage` (ADR-002 §3) —
+  # permissions/autoMode.ts, где тот же union объявлен повторно. Третья точка
+  # касания заведена прогоном hr-20260926-* (см. отчёт-эвиденс §«Дельта»):
+  # без неё `stage: 'jev'` не проходит типизацию, что противоречит критерию
+  # приёмки §8.2 спеки. Правка в autoMode.ts — ровно один union, без логики.
   - name: upstream_delta_scope
     type: command_succeeds
-    command: "bash -c 'git diff --name-only 224c974a21 HEAD -- packages/core/src | grep -v -E \"^packages/core/src/(jev/|permissions/classifier\\.ts$|config/config\\.ts$)\" | wc -l | grep -qx 0'"
+    command: "bash -c 'git diff --name-only 224c974a21 HEAD -- packages/core/src packages/cli/src | grep -v -E \"^packages/(core|cli)/src/(jev/|permissions/classifier\\.ts$|permissions/autoMode\\.ts$|config/config\\.ts$|config/settingsSchema\\.ts$)\" | wc -l | grep -qx 0'"
     timeout_secs: 120
     severity: error
 
   # AD-2: у Jev-гейта нет allow-исхода — только block | no-decision.
   - name: gate_has_no_allow_verdict
     type: must_not_contain
-    glob: "packages/core/src/jev/gate.ts"
+    glob: 'packages/core/src/jev/gate.ts'
     pattern: "verdict:\\s*['\"](allow|allowed)['\"]"
     severity: error
 
@@ -70,68 +75,83 @@ rules:
   # возвращать decided=false при unavailable.
   - name: unavailable_is_not_decided
     type: must_contain
-    glob: "packages/core/src/jev/stage.ts"
-    pattern: "unavailable"
+    glob: 'packages/core/src/jev/stage.ts'
+    pattern: 'unavailable'
     severity: error
   - name: stage_never_throws_out
     type: must_contain
-    glob: "packages/core/src/jev/stage.ts"
+    glob: 'packages/core/src/jev/stage.ts'
     pattern: "try\\s*\\{"
     severity: warn
 
   # AD-4: сборщик state не читает транскрипт и окружение.
   - name: state_builder_no_transcript_no_env
     type: must_not_contain
-    glob: "packages/core/src/jev/state.ts"
+    glob: 'packages/core/src/jev/state.ts'
     pattern: "(toolParams|params)\\.messages|process\\.env"
     severity: error
 
-  # AD-8: ключ читается только из окружения и никогда не хардкодится.
-  - name: key_read_from_env_only
-    type: must_contain
-    glob: "packages/core/src/jev/backends/typesafe.ts"
-    pattern: "TYPESAFE_API_KEY"
+  # AD-8 / AD-10 / ADR-004 Rev 2: в целевом контуре ключа вендора нет вовсе.
+  # Прежнее правило `key_read_from_env_only` требовало чтения TYPESAFE_API_KEY
+  # из окружения в backends/typesafe.ts; этот бэкенд выведен решением владельца
+  # (носитель решения локальный, ключ не нужен), поэтому правило заменено на
+  # прямой запрет: ни ключа, ни доступа к окружению в коде пакета стадии.
+  # Тесты исключены: имя переменной встречается в них как часть сканера утечек
+  # (за само значение отвечает `no_hardcoded_secret_values`), а правило целится
+  # в поставляемый код.
+  - name: no_vendor_key_in_core
+    type: must_not_contain
+    glob: 'packages/core/src/jev/**/*.ts'
+    pattern: "TYPESAFE_API_KEY|process\\.env"
+    exclude_glob: ['**/node_modules/**', '**/__tests__/**']
     severity: error
   - name: no_hardcoded_secret_values
     type: must_not_contain
-    glob: ["packages/core/src/jev/**/*.ts", "pilot/**/*", "docs/adr/**/*.md", "docs/specs/**/*.md", "ARCHITECTURE-SPINE.md"]
+    glob:
+      [
+        'packages/core/src/jev/**/*.ts',
+        'pilot/**/*',
+        'docs/adr/**/*.md',
+        'docs/specs/**/*.md',
+        'ARCHITECTURE-SPINE.md',
+      ]
     pattern: "(?:TYPESAFE_API_KEY|API_KEY|TOKEN|SECRET)\\s*[:=]\\s*['\\\"][A-Za-z0-9_\\-]{16,}['\\\"]|sk-[A-Za-z0-9]{16,}|ghp_[A-Za-z0-9]{16,}"
-    exclude_glob: ["**/node_modules/**", "docs/users/**"]
+    exclude_glob: ['**/node_modules/**', 'docs/users/**']
     severity: error
 
   # AD-9: режим enforce не является допустимым значением конфигурации v1.
   - name: enforce_rejected_in_settings
     type: must_contain
-    glob: "packages/core/src/jev/settings.ts"
-    pattern: "enforce"
+    glob: 'packages/core/src/jev/settings.ts'
+    pattern: 'enforce'
     severity: warn
 
   # AD-7/AD-9: пилотный спек заморожен и помечен.
   - name: pilot_spec_frozen_flag
     type: must_contain
-    glob: "pilot/questions.spec.json"
+    glob: 'pilot/questions.spec.json'
     pattern: "\"frozen\":\\s*true"
     severity: error
   - name: pilot_readme_present
     type: file_exists
-    path: "pilot/README.md"
+    path: 'pilot/README.md'
     severity: error
 
   # AD-3/§7 спеки: тесты walking skeleton существуют и не ходят в сеть.
   - name: jev_tests_present
     type: file_exists
-    path: "packages/core/src/jev/__tests__/stage.test.ts"
+    path: 'packages/core/src/jev/__tests__/stage.test.ts'
     severity: error
   - name: jev_tests_are_offline
     type: must_not_contain
-    glob: "packages/core/src/jev/__tests__/*.ts"
+    glob: 'packages/core/src/jev/__tests__/*.ts'
     pattern: "api\\.typesafe\\.ai"
     severity: error
 
   # §8 спеки: отчёт-эвиденс приёмки обязателен и свеж.
   - name: acceptance_evidence_fresh
     type: max_age
-    path: "docs/specs/jev-gate-evidence.md"
+    path: 'docs/specs/jev-gate-evidence.md'
     max_age_days: 30
     severity: error
 
@@ -139,12 +159,12 @@ rules:
   # Внешний вендорский endpoint в коде ядра запрещён.
   - name: no_vendor_endpoint_in_core
     type: must_not_contain
-    glob: "packages/core/src/jev/**/*.ts"
+    glob: 'packages/core/src/jev/**/*.ts'
     pattern: "api\\.typesafe\\.ai"
     severity: error
   - name: local_endpoint_is_default
     type: must_contain
-    glob: "packages/core/src/jev/settings.ts"
+    glob: 'packages/core/src/jev/settings.ts'
     pattern: "127\\.0\\.0\\.1|localhost|::1"
     severity: error
 
@@ -152,13 +172,13 @@ rules:
   # (Реестр исключённых моделей живёт в pilot/local-backends-survey.md и под правило не попадает.)
   - name: no_nonpermissive_backend_in_core
     type: must_not_contain
-    glob: ["packages/core/src/jev/**/*.ts", "packages/core/src/jev/**/*.json"]
-    pattern: "(?i)cc-by-nc|cc_by_nc|openjev"
+    glob: ['packages/core/src/jev/**/*.ts', 'packages/core/src/jev/**/*.json']
+    pattern: '(?i)cc-by-nc|cc_by_nc|openjev'
     severity: error
 
   # Гигиена архитектурных документов: заглушки запрещены (неготовое — в Deferred).
   - name: no_placeholders_in_spine
     type: must_not_contain
-    glob: "ARCHITECTURE-SPINE.md"
-    pattern: "TODO|TBD|FIXME"
+    glob: 'ARCHITECTURE-SPINE.md'
+    pattern: 'TODO|TBD|FIXME'
     severity: warn

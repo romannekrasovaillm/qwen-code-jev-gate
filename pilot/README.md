@@ -16,7 +16,7 @@
 
 | ID | Кандидат | Как поднять | Статус |
 |----|----------|-------------|--------|
-| `jev` (историч.) | Нативный Jev API (`typesafe-sdk`, `jev-latest`) | — | **Исключён из контура** (ADR-004): внешний API выведен, носитель решений — только локальный |
+| `jev` | Нативный Jev (`typesafe-sdk`, `jev-latest`) | `export TYPESAFE_API_KEY=…`, `pip install typesafe-sdk` | Блокирован ключом |
 | `llm_adapter` | LLM как System One тем же спеком вопросов | `pip install 'system-one-adapter[openai]'` | Доступен |
 | `prompt_monolith` | Один промпт, LLM решает всё внутри | локально | Доступен |
 | `baseline_ml` | Эмбеддинги + логистическая регрессия на нашем датасете | локально | Доступен |

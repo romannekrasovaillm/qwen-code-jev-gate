@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><title>Пилот-04: расширенный эталон (275 примеров)</title>
+<style>
+ :root{--bg:#0f1117;--card:#171a23;--fg:#e8eaf0;--muted:#9aa3b2;--ok:#3ecf8e;--bad:#ff6b6b;--warn:#ffc857;--line:#242938}
+ *{box-sizing:border-box}body{margin:0;padding:26px 32px 36px;background:var(--bg);color:var(--fg);font:14px/1.5 -apple-system,"Segoe UI",Roboto,Ubuntu,sans-serif}
+ h1{font-size:21px;margin:0 0 4px}.sub{color:var(--muted);margin:0 0 16px;font-size:13px}
+ .meta{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:14px}.chip{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:4px 11px;color:var(--muted);font-size:12px}
+ table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-bottom:14px}
+ th,td{padding:8px 12px;text-align:left;border-bottom:1px solid var(--line);font-size:13px}th{color:var(--muted);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.04em}
+ tr:last-child td{border-bottom:none}.ok{color:var(--ok);font-weight:600}.bad{color:var(--bad);font-weight:600}.warn{color:var(--warn);font-weight:600}
+ code{background:#0b0d12;border:1px solid var(--line);border-radius:5px;padding:1px 6px;font-size:12px}
+ .concl{margin-top:12px;padding:13px 16px;border:1px solid var(--line);border-left:3px solid var(--bad);background:var(--card);border-radius:8px}.concl b{color:var(--bad)}
+ footer{margin-top:12px;color:var(--muted);font-size:12px}
+</style></head><body>
+<h1>Пилот-04: расширенный эталон — 275 размеченных примеров</h1>
+<p class="sub">Тот же замороженный спек, те же правила разметки (размечаем суть, не форму). 550 вызовов, ошибок 0.</p>
+<div class="meta"><span class="chip">эталон: 275 (44 опасных / 231 безопасных)</span><span class="chip">по стратам, не средним</span><span class="chip">критерии приёмки зафиксированы до обучения</span></div>
+<table>
+ <thead><tr><th>Метрика</th><th>en (421M)</th><th>multilingual (322M)</th></tr></thead>
+ <tbody>
+  <tr><td>Согласие по классу</td><td class="warn">47 %</td><td class="bad">24 %</td></tr>
+  <tr><td>Латентность p50 / p95 / max</td><td class="bad">3.1 / 6.3 / 10.2 с</td><td class="warn">1.2 / 5.3 / 7.1 с</td></tr>
+  <tr><td>Опасные: пропущено стадией</td><td class="bad">31 из 44 (70 %)</td><td>1 из 44</td></tr>
+  <tr><td>Ложных разрешений при enforce</td><td class="bad">28</td><td>0</td></tr>
+  <tr><td>Безопасные: ложно заблокировано</td><td class="warn">49 из 231 (21 %)</td><td class="bad">230 из 231 (100 %)</td></tr>
+ </tbody>
+</table>
+<table>
+ <thead><tr><th>Страта</th><th>n</th><th>en</th><th>multilingual</th><th>Что видно</th></tr></thead>
+ <tbody>
+  <tr><td>read_only</td><td>48</td><td class="ok">96 %</td><td>71 %</td><td>единственный надёжный класс</td></tr>
+  <tr><td>ambiguous</td><td>38</td><td>63 %</td><td>21 %</td><td>смешанные команды</td></tr>
+  <tr><td>secrets</td><td>38</td><td>61 %</td><td>24 %</td><td>согласие ≠ безопасность</td></tr>
+  <tr><td>adversarial</td><td>15</td><td>47 %</td><td>27 %</td><td>указки мешают</td></tr>
+  <tr><td>destructive</td><td>38</td><td class="bad">37 %</td><td class="bad">3 %</td><td>ключевая страта гейта</td></tr>
+  <tr><td>exfiltration</td><td>38</td><td class="bad">34 %</td><td class="bad">18 %</td><td>утечки наружу</td></tr>
+  <tr><td>network</td><td>30</td><td class="bad">7 %</td><td class="bad">7 %</td><td>опция почти не выбирается</td></tr>
+  <tr><td>write_local</td><td>30</td><td class="bad">0 %</td><td class="bad">3 %</td><td>опция не выбирается вовсе</td></tr>
+ </tbody>
+</table>
+<div class="concl"><b>Вердикт: reject для zero-shot в роли арбитра — на расширенном объёме подтверждён.</b>
+Провал локализован: модель систематически не выбирает опции <code>write_local</code>/<code>network</code>, спорное относит к <code>read_only</code>/<code>other</code>. Это смещение распределения, а не размытые пороги.
+Дальше — домен-адаптация; критерии повторного замера зафиксированы <i>до</i> обучения: пропуск опасного &lt; 10 %, ложные блоки &lt; 15 %, p95 в бюджете 3 с, монотонная reliability curve. Ослабление критериев «по факту результата» запрещено решением C36.</div>
+<footer>Ограничения: разметка одного разметчика (inter-annotator agreement не измерен); страты destructive/adversarial малочисленны; GPU-путь недоступен. Полный отчёт: <code>pilot/pilot-report-04-rasshirennyy-etalon.md</code></footer>
+</body></html>
